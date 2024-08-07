@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="ucb">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/../library-sp21/javalib/ucb.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
