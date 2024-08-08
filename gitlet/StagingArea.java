@@ -12,14 +12,15 @@ import static gitlet.Repository.OBJECT_DIR;
 import static gitlet.Utils.*;
 
 public class StagingArea implements Serializable{
-    private Map<String, String> pathToBlobID = new HashMap<>();
 
-    public boolean isNewBlob(Blob blob){
-        return !pathToBlobID.containsValue(blob.getBlobID());
-    }
+    private Map<String, String> pathToBlobID = new HashMap<>();
 
     public Map<String, String> getPathToBlobID(){
         return pathToBlobID;
+    }
+
+    public boolean isNewBlob(Blob blob){
+        return !pathToBlobID.containsValue(blob.getBlobID());
     }
 
     public boolean isFilePathExists(String path){

@@ -9,27 +9,25 @@ import static gitlet.Repository.OBJECT_DIR;
 
 
 public class Blob implements Serializable{
-    private String blobID;
 
+    /**Basic information about Blob files*/
+    private String blobID;
     private byte[] contents;
+    private String filePath;
+
+    private String fileName;
 
     private File blobSaveFile;
 
-    private String filePath;
-
-    private File fileName;
-
     public Blob(File fileName){
-        this.fileName = fileName;
+        this.fileName = fileName.getName();
         this.contents = readContents(fileName);
         this.filePath = fileName.getPath();
+
         this.blobID = generateBlobID();
         this.blobSaveFile = generateBlobSaveFile();
     }
 
-    public void save(){
-        writeContents(blobSaveFile, this);
-    }
 
     /**Calculate sha1 hash value based on file path and file content*/
     private String generateBlobID(){
@@ -57,6 +55,10 @@ public class Blob implements Serializable{
     }
 
     public String getFileName(){
-        return fileName.getName();
+        return fileName;
+    }
+
+    public void save(){
+        writeContents(blobSaveFile, this);
     }
 }

@@ -25,16 +25,26 @@ public class Commit implements Serializable {
      *
      * List all instance variables of the Commit class here with a useful
      * comment above them describing what that variable represents and how that
-     * variable is used. We've provided one example for `message`.
+     * variable is used. We've provided one example for `message`
      */
+
+    /**Basic information a commit should have*/
     private String message;
     private Date time;
-    private String commitHash;
     private List<String> parents;
     private File commitSaveFile;
-    private Map<String, String> pathToBlobID = new HashMap<>();
 
     private String timeStamp;
+
+    /**Stores the file pointed to by the commit object
+     * key: file path
+     * value: blobID */
+    private Map<String, String> pathToBlobID = new HashMap<>();
+
+    /**The sha1 hash value generated for each commit makes it easy
+     * to determine where the commit file is stored in the OBJECT folder.*/
+    private String commitHash;
+
 
     public Commit(String message, Map<String, String> pathToBlobID, List<String> parents){
         this.message = message;
@@ -45,6 +55,7 @@ public class Commit implements Serializable {
         this.commitSaveFile = generateFile();
     }
 
+    /**Default submission*/
     public Commit(){
         this.message = "initial commit";
         this.parents = new ArrayList<>();
@@ -52,16 +63,19 @@ public class Commit implements Serializable {
         this.time = new Date(0);
         this.commitHash = generateHash();
         this.commitSaveFile = generateFile();
+
         this.timeStamp = timeToTimeStamp(time);
+    }
+
+    /**Determine the hash value based on unique information
+     * such as time, message, parent node, and pointed file*/
+    private String generateHash(){
+        return sha1(generateTimeStamp(), message, parents.toString(), pathToBlobID.toString());
     }
 
     private String generateTimeStamp(){
         DateFormat dateFormat = new SimpleDateFormat("EEE MMM d HH:mm:ss yyyy Z", Locale.CHINA);
         return dateFormat.format(time);
-    }
-
-    private String generateHash(){
-        return sha1(generateTimeStamp(), message, parents.toString(), pathToBlobID.toString());
     }
 
     private File generateFile(){
@@ -89,16 +103,18 @@ public class Commit implements Serializable {
         return time;
     }
 
+    public List<String> getParents(){
+        return parents;
+    }
+
+
+    /**Write the commit information to the OBJECT folder*/
     public void save(){
         writeContents(commitSaveFile, this);
     }
 
     public boolean exists(String filePath){
         return pathToBlobID.containsKey(filePath);
-    }
-
-    public List<String> getParents(){
-        return parents;
     }
 
     private static String timeToTimeStamp(Date time){
@@ -112,8 +128,8 @@ public class Commit implements Serializable {
 
     public List<String> getFileNames(){
         List<String> fileNames = new ArrayList<>();
-        List<Blob> blobs = getBlobList();
-        for(Blob blob : blobs){
+        List<Blob> blobList = getBlobList();
+        for(Blob blob : blobList){
             fileNames.add(blob.getFileName());
         }
         return fileNames;
@@ -121,8 +137,8 @@ public class Commit implements Serializable {
 
     private List<Blob> getBlobList(){
         List<Blob> blobList = new ArrayList<>();
-        for(String id : pathToBlobID.values()){
-            Blob blob = getBlobByID(id);
+        for(String blobID : pathToBlobID.values()){
+            Blob blob = getBlobByID(blobID);
             blobList.add(blob);
         }
         return blobList;

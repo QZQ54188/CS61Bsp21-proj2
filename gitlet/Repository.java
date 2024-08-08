@@ -30,11 +30,19 @@ public class Repository {
 
     /** The current working directory. */
     public static final File CWD = new File(System.getProperty("user.dir"));
+
     /** The .gitlet directory. */
     public static final File GITLET_DIR = join(CWD, ".gitlet");
+
+    /**Folder to store commit, blob objects*/
     public static final File OBJECT_DIR = join(GITLET_DIR, "objects");
     public static final File REFS_DIR = join(GITLET_DIR, "refs");
+
+    /**This file stores the branch name pointed to*/
     public static final File HEAD_FILE = join(GITLET_DIR, "HEAD");
+
+    /**Folder to store branch name files。
+     * Each branch name file points to the latest commit of the branch*/
     public static final File HEADS_DIR = join(REFS_DIR, "heads");
 
     public static final File ADDSTAGE_FILE = join(GITLET_DIR, "add_stage");
@@ -69,21 +77,18 @@ public class Repository {
         mkdir(HEADS_DIR);
         writeContents(HEAD_FILE, "master");
         initCommit();
-        initHeads();
+        File headsFile = join(HEADS_DIR, "master");
+        writeContents(headsFile, curCommit.getCommitHash());
     }
 
+    /**Initialize the submission and save the submission to the OBJECT folder*/
     private static void initCommit(){
         Commit init = new Commit();
         curCommit = init;
         init.save();
     }
 
-    private static void initHeads(){
-        File headsFile = join(HEADS_DIR, "master");
-        writeContents(headsFile, curCommit.getCommitHash());
-    }
-
-    /**Check whether the warehouse has been initialized when using the add method*/
+    /**Check whether the warehouse has been initialized when using command method*/
     public static void checkInitialized(){
         if(!GITLET_DIR.exists()){
             System.out.println("Not in an initialized Gitlet directory.");
@@ -106,6 +111,8 @@ public class Repository {
         curCommit = readCurCommit();
         addStage = readAddStage();
         removeStage = readRemoveStage();
+
+        //Check if the blob requires storage
         if(!curCommit.getPathToBlobID().containsValue(blob.getBlobID())||
                 !removeStage.isNewBlob(blob)){
             if(addStage.isNewBlob(blob)){
@@ -128,6 +135,8 @@ public class Repository {
         return Paths.get(fileName).isAbsolute() ? new File(fileName) : join(CWD, fileName);
     }
 
+    /**Get the latest commit of the corresponding branch in
+     * the refs/heads folder through the branch name in the HEAD file*/
     private static Commit readCurCommit(){
         String curCommitID = readCurCommitID();
         File curCommitFile = join(OBJECT_DIR, curCommitID);
@@ -144,6 +153,7 @@ public class Repository {
         return readContentsAsString(HEAD_FILE);
     }
 
+    /**Get the contents of addStage and removeStage through files*/
     private static StagingArea readAddStage(){
         if(!ADDSTAGE_FILE.exists()){
             return new StagingArea();
@@ -158,6 +168,8 @@ public class Repository {
         return readObject(REMOVESTAGE_FILE, StagingArea.class);
     }
 
+
+
     /**commit command function*/
     public static void commit(String message){
         if(message.isEmpty()){
@@ -166,29 +178,34 @@ public class Repository {
         }
         //Create a commit based on the message and save it
         Commit newCommit = newCommit(message);
+
+        //Save the newCommit in the OBJECT folder
         saveNewCommit(newCommit);
     }
 
     private static Commit newCommit(String message){
+        curCommit = readCurCommit();
+
         Map<String, String> addBlob = findAddBlob();
         Map<String, String> removeBlob = findRemoveBlob();
+        //Check if commit is necessary
         checkIfNewCommit(addBlob, removeBlob);
-
-        curCommit = readCurCommit();
-        Map<String,String> blobMap = getBlobMapFromCurCommit(curCommit);
+        Map<String,String> blobMap = curCommit.getPathToBlobID();
 
         blobMap = caculateBlobMap(blobMap, addBlob, removeBlob);
         List<String> parents = findParents();
+
         return new Commit(message, blobMap, parents);
     }
 
     private static void saveNewCommit(Commit newCommit){
+        curCommit = newCommit;
         newCommit.save();
         addStage.clear();
         addStage.saveAddStage();
         removeStage.clear();
         removeStage.saveRemoveStage();
-        curCommit = newCommit;
+
         //Replace the contents of the refs/heads file with the hash value of the latest commit
         String curBranch = readCurBranch();
         File headsFile = join(HEADS_DIR, curBranch);
@@ -221,10 +238,6 @@ public class Repository {
             System.out.println("No changes added to the commit.");
             System.exit(0);
         }
-    }
-
-    private static Map<String, String> getBlobMapFromCurCommit(Commit curCommit){
-        return curCommit.getPathToBlobID();
     }
 
     private static Map<String, String> caculateBlobMap(Map<String, String> blobMap,
@@ -307,9 +320,11 @@ public class Repository {
             }else{
                 printCommit(curCommit);
             }
+
             List<String> parents = curCommit.getParents();
             curCommit = readCommitByID(parents.get(0));
         }
+        /**print initial commit*/
         printCommit(curCommit);
     }
 
@@ -332,6 +347,7 @@ public class Repository {
         printCommitMessage(curCommit);
     }
 
+    /**You can search for specified commit files by prefix or full name.*/
     private static Commit readCommitByID(String id){
         if(id.length() == 40){
             File curCommitFile = join(OBJECT_DIR, id);
@@ -421,11 +437,7 @@ public class Repository {
                 System.err.println("Error processing commit ID: " + id + "-" + ignore.getMessage());
             }
         }
-        printID(idList);
-    }
 
-
-    private static void printID(List<String> idList){
         if(idList.isEmpty()){
             System.out.println("Found no commit with that message.");
         }else{
@@ -434,6 +446,7 @@ public class Repository {
             }
         }
     }
+
 
 
 
@@ -449,6 +462,7 @@ public class Repository {
     private static void printBranches(){
         List<String> branchNames = plainFilenamesIn(HEADS_DIR);
         curBranch = readCurBranch();
+
         System.out.println("=== Branches ===");
         System.out.println("*" + curBranch);
         //Indicates that there is more than the default branch
@@ -498,6 +512,7 @@ public class Repository {
     public static void checkout(String fileName){
         Commit curCommit = readCurCommit();
         List<String> fileNames = curCommit.getFileNames();
+
         if(fileNames.contains(fileName)){
             Blob blob = curCommit.getBlobByFileName(fileName);
             writeBlobToCWD(blob);
@@ -661,11 +676,11 @@ public class Repository {
     public static void rm_branch(String branchName){
         curBranch = readCurBranch();
         List<String> branches = plainFilenamesIn(HEADS_DIR);
+
         if(curBranch.equals(branchName)){
             System.out.println("Cannot remove the current branch.");
             System.exit(0);
         }
-
         if(!branches.contains(branchName)){
             System.out.println("A branch with that name does not exist.");
             System.exit(0);
@@ -701,6 +716,7 @@ public class Repository {
     public static void merge(String branchName){
         curBranch = readCurBranch();
 
+        //Check the plausibility of branches
         addStage = readAddStage();
         removeStage = readRemoveStage();
         if(!addStage.isEmpty() && !removeStage.isEmpty()){
@@ -733,6 +749,9 @@ public class Repository {
             checkoutBranch(branchName);
         }
 
+        /***After testing, it can be merged。
+         * First assume that the current commit is the commit after merge,
+         * and then modify it based on this*/
         Map<String, String> curCommitBlobs = curCommit.getPathToBlobID();
 
         String message = "Merged" + branchName + "into" + curBranch + ".";
@@ -743,6 +762,7 @@ public class Repository {
         Commit newCommit = new Commit(message, curCommitBlobs, parents);
 
         Commit mergedCommit = mergeFilesToNewCommit(splitPoint, newCommit, mergeCommit);
+        saveNewCommit(mergedCommit);
     }
 
     private static Commit findSplitPoint(Commit curCommit, Commit mergeCommit){
@@ -932,14 +952,12 @@ public class Repository {
                 mergedCommitBlobs.put(blob.getFilePath(), blobID);
             }
         }
-
         if (!writeFiles.isEmpty()) {
             for (String blobID : writeFiles) {
                 Blob b = getBlobByID(blobID);
                 mergedCommitBlobs.put(b.getFilePath(), blobID);
             }
         }
-
         if (!deleteFiles.isEmpty()) {
             for (String blobID : overwriteFiles) {
                 Blob b = getBlobByID(blobID);
